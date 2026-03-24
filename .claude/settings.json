@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /home/kylian/workspace/Tech/Tek4/capstone -not -path */node_modules* -type f)",
+      "Bash(pkill -f 'node server.js')",
+      "Bash(lsof -ti:3001)",
+      "Bash(xargs kill:*)"
+    ],
+    "additionalDirectories": [
+      "/home/kylian/workspace/Tech/Tek4/capstone"
+    ]
+  }
+}
