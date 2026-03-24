@@ -50,6 +50,9 @@ function generateHeatmapData() {
 router.get('/', (req, res) => {
   try {
     const activityData = generateActivityData();
+    activityData.steps = req.user.dailySteps || 0;
+    activityData.distance = parseFloat((activityData.steps * 0.7 / 1000).toFixed(2));
+    activityData.calories = Math.round(activityData.steps * 0.04);
     
     res.json({
       success: true,
@@ -105,6 +108,28 @@ router.get('/heatmap', (req, res) => {
       success: false,
       error: 'Failed to get heatmap data'
     });
+  }
+});
+
+/**
+ * @route   POST /api/activity/sync-steps
+ * @desc    Add un-synced user steps
+ * @access  Private
+ */
+router.post('/sync-steps', async (req, res) => {
+  try {
+    const user = req.user;
+    const stepsToAdd = req.body.steps || 0;
+    
+    if (stepsToAdd > 0) {
+      user.dailySteps = (user.dailySteps || 0) + stepsToAdd;
+      await user.save({ validateModifiedOnly: true });
+    }
+    
+    res.json({ success: true, dailySteps: user.dailySteps });
+  } catch (error) {
+    console.error('Sync steps error:', error);
+    res.status(500).json({ success: false, error: 'Failed to sync steps' });
   }
 });
 

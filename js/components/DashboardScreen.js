@@ -1,37 +1,48 @@
 // Dashboard Screen Component
 const DashboardScreen = ({ currentUser }) => {
     const [dashboardData, setDashboardData] = React.useState(null);
-    const [loading, setLoading] = React.useState(true);
+    const [loading, setLoading]             = React.useState(true);
+    const [isConnected, setIsConnected]     = React.useState(false);
+    const [steps, setSteps]   = React.useState(0);
+
+    // Distance et calories toujours dérivées des pas — jamais de rollback possible
+    const distance = parseFloat((steps * 0.7 / 1000).toFixed(2));
+    const calories  = Math.round(steps * 0.04);
 
     React.useEffect(() => {
         loadDashboard();
-        
-        // Listen for realtime updates
-        SafeStepAPI.on('realtime_update', (data) => {
-            console.log('📡 Realtime update:', data);
-            setDashboardData(prev => prev ? ({
-                ...prev,
-                health: data.health || prev.health
-            }) : null);
+
+        const onStep = (e) => {
+            const serverSteps = e?.detail?.steps;
+            // Math.max : si un message arrive dans le désordre, on ne recule jamais
+            setSteps(prev => serverSteps !== undefined ? Math.max(serverSteps, prev) : prev + 1);
+        };
+        window.addEventListener('safestep_step_added', onStep);
+
+        SafeStepAPI.on('device_update', (data) => {
+            if (data.connected) setIsConnected(true);
         });
 
         const interval = setInterval(loadDashboard, 30000);
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('safestep_step_added', onStep);
+        };
     }, []);
 
     const loadDashboard = async () => {
         try {
             const response = await SafeStepAPI.getDashboard();
-            setDashboardData(response.data);
+            const d = response.data;
+            setDashboardData(d);
+            // Ne jamais réduire le compteur affiché lors d'un refresh depuis la DB
+            setSteps(prev => Math.max(prev, d.summary?.steps || 0));
             setLoading(false);
         } catch (error) {
             console.error('Error loading dashboard:', error);
-            // Fallback to static data
             setDashboardData({
-                device: { connected: true, battery: 78 },
-                activity: { steps: 3847, distance: 2.8, calories: 142 },
-                location: { latitude: 48.8566, longitude: 2.3522, address: '123 Rue de Paris' },
-                health: { heartRate: 72, bloodPressure: '120/80', oxygen: 98 }
+                device: { connected: false, battery: 78 },
+                location: { address: '123 Rue de Paris' },
             });
             setLoading(false);
         }
@@ -48,12 +59,9 @@ const DashboardScreen = ({ currentUser }) => {
         );
     }
 
-    const { device, activity, location, health } = dashboardData;
-    const connected = device?.connected ?? false;
-    const battery = device?.battery ?? 0;
-    const steps = activity?.steps ?? 0;
-    const distance = activity?.distance ?? 0;
-    const calories = activity?.calories ?? 0;
+    const connected = isConnected || (dashboardData.device?.connected ?? false);
+    const battery   = dashboardData.summary?.battery ?? dashboardData.device?.battery ?? 0;
+    const location  = dashboardData.location;
 
     const handleSOS = async () => {
         if (window.confirm('🚨 Activer le SOS d\'urgence?\n\nLes contacts seront notifiés immédiatement.')) {
@@ -123,24 +131,6 @@ const DashboardScreen = ({ currentUser }) => {
                         className="h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500"
                         style={{ width: `${battery}%` }}
                     ></div>
-                </div>
-            </div>
-
-            {/* Health Quick View */}
-            <div className="metric-card mb-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Icon name="heart-pulse" size={20} color="#EF4444" />
-                    Santé
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-red-50 rounded-lg">
-                        <p className="text-xs text-slate-600 mb-1">Fréquence Cardiaque</p>
-                        <p className="text-xl font-bold">{health?.heartRate || 72} bpm</p>
-                    </div>
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                        <p className="text-xs text-slate-600 mb-1">Oxygène</p>
-                        <p className="text-xl font-bold">{health?.oxygen || 98}%</p>
-                    </div>
                 </div>
             </div>
 

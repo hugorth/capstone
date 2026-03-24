@@ -78,8 +78,8 @@ const LoginScreen = ({ onLogin }) => {
 
     const fillDemoCredentials = () => {
         setFormData({
-            email: 'hugo@safestep.com',
-            password: 'password123',
+            email: 'marie.joubert@email.com',
+            password: 'Password123!',
             name: ''
         });
         setIsLogin(true);
@@ -215,8 +215,8 @@ const LoginScreen = ({ onLogin }) => {
                         {showHint && (
                             <div className="mt-3 p-4 bg-blue-50 rounded-lg text-left animate-slide-up">
                                 <p className="text-sm text-slate-600 mb-2">
-                                    <strong>Email:</strong> hugo@safestep.com<br />
-                                    <strong>Mot de passe:</strong> password123
+                                    <strong>Email:</strong> marie.joubert@email.com<br />
+                                    <strong>Mot de passe:</strong> Password123!
                                 </p>
                                 <button
                                     onClick={fillDemoCredentials}

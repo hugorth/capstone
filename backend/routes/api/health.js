@@ -18,7 +18,9 @@ function generateHealthData() {
 }
 
 router.get('/', (req, res) => {
-  res.json({ success: true, data: generateHealthData() });
+  const data = generateHealthData();
+  data.steps = req.user.dailySteps || 0;
+  res.json({ success: true, data });
 });
 
 router.get('/heartrate/history', (req, res) => {

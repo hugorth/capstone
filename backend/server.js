@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const WebSocket = require('ws');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,6 +10,9 @@ const rateLimit = require('express-rate-limit');
 // Database
 const connectDB = require('./config/database');
 const { initializeDefaultUsers } = require('./utils/initUsers');
+
+// Device service (données réelles chaussure BLE)
+const deviceService = require('./services/deviceService');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -44,27 +48,32 @@ const limiter = rateLimit({
   legacyHeaders: false
 });
 
-app.use('/api', limiter);
+// Rate limiting sur toutes les routes /api SAUF la gateway BLE (flux continu ~10Hz)
+app.use('/api', (req, res, next) => {
+  if (req.path === '/device/gateway') return next();
+  return limiter(req, res, next);
+});
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ==================== ROUTES ====================
-
-// Health check (public)
+// ==================== FRONTEND STATIQUE ====================
+// Sert les fichiers du frontend depuis la racine du projet
+const frontendDir = path.join(__dirname, '..');
+app.use(express.static(frontendDir));
 app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: '🦿 SafeStep Backend API',
-    version: '2.0.0',
-    status: 'running',
-    timestamp: new Date()
-  });
+  res.sendFile(path.join(frontendDir, 'index-modular.html'));
 });
+
+// ==================== ROUTES ====================
 
 // Auth routes (public)
 app.use('/api/auth', authRoutes);
+
+// Gateway BLE (public — protégée par clé API, pas de JWT)
+app.post('/api/device/gateway', require('./routes/api/device').gatewayHandler);
+app.post('/api/device/gateway/step', require('./routes/api/device').gatewayStepHandler);
 
 // User routes (protected)
 app.use('/api/users', userRoutes);
@@ -108,6 +117,26 @@ app.use((err, req, res, next) => {
 
 // WebSocket connections map (userId -> ws)
 const wsConnections = new Map();
+
+// Expose les userId connectés au deviceService (utilisé par gatewayStepHandler)
+deviceService.setGetConnectedUserIds(() => [...wsConnections.keys()]);
+
+// Connecte le deviceService au broadcast WebSocket
+// Quand la vraie chaussure envoie des données, elles sont pushées à l'utilisateur concerné
+deviceService.setBroadcast((userId, data) => {
+  const type = data.__type || 'device_update';
+  const { __type, ...rest } = data;
+  const payload = __type ? rest : data;
+  const msg = JSON.stringify({ type, data: payload });
+  if (userId) {
+    const ws = wsConnections.get(userId);
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
+  } else {
+    wsConnections.forEach((ws) => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+    });
+  }
+});
 
 wss.on('connection', (ws, req) => {
   console.log('🔌 New WebSocket connection');

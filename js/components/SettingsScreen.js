@@ -148,31 +148,8 @@ const SettingsScreen = ({ currentUser, onLogout }) => {
                 </div>
             </div>
 
-            {/* Device Info */}
-            <div className="metric-card mb-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Icon name="smartphone" size={20} color="#0EA5E9" />
-                    Appareil Connecté
-                </h3>
-                <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                        <span className="text-slate-600">Modèle:</span>
-                        <span className="font-semibold">SafeStep Pro v2</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-slate-600">Firmware:</span>
-                        <span className="font-semibold">2.4.1</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-slate-600">Batterie:</span>
-                        <span className="font-semibold text-green-600">78%</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-slate-600">Dernière Synchro:</span>
-                        <span className="font-semibold">Il y a 2 min</span>
-                    </div>
-                </div>
-            </div>
+            {/* BLE Shoe Connection */}
+            <BLEPanel />
 
             {/* Logout */}
             <button 

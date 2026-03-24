@@ -13,7 +13,7 @@ echo ""
 # Déterminer le chemin du script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
-FRONTEND_FILE="$SCRIPT_DIR/safestepV3-connected-full.html"
+FRONTEND_URL="http://localhost:3001"
 
 # Vérifier si Node.js est installé
 if ! command -v node &> /dev/null; then
@@ -32,9 +32,17 @@ if ! command -v mongosh &> /dev/null && ! command -v mongo &> /dev/null; then
     echo ""
     echo "Options:"
     echo "  1. Installer MongoDB localement (recommandé):"
-    echo "     brew tap mongodb/brew"
-    echo "     brew install mongodb-community"
-    echo "     brew services start mongodb-community"
+    if [[ "$(uname)" == "Linux" ]]; then
+        echo "     sudo apt-get install -y gnupg curl"
+        echo "     curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor"
+        echo "     echo \"deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse\" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list"
+        echo "     sudo apt-get update && sudo apt-get install -y mongodb-org"
+        echo "     sudo systemctl enable --now mongod"
+    else
+        echo "     brew tap mongodb/brew"
+        echo "     brew install mongodb-community"
+        echo "     brew services start mongodb-community"
+    fi
     echo ""
     echo "  2. Utiliser MongoDB Atlas (cloud gratuit):"
     echo "     https://www.mongodb.com/cloud/atlas"
@@ -52,7 +60,11 @@ else
     else
         echo "⚠️  MongoDB n'est pas en cours d'exécution"
         echo "🚀 Démarrage de MongoDB..."
-        brew services start mongodb-community 2>/dev/null || mongod --fork --logpath /tmp/mongodb.log 2>/dev/null
+        if [[ "$(uname)" == "Linux" ]]; then
+            sudo systemctl start mongod 2>/dev/null || mongod --fork --logpath /tmp/mongodb.log 2>/dev/null
+        else
+            brew services start mongodb-community 2>/dev/null || mongod --fork --logpath /tmp/mongodb.log 2>/dev/null
+        fi
         sleep 2
     fi
 fi
@@ -72,7 +84,13 @@ echo ""
 # Vérifier si .env existe
 if [ ! -f ".env" ]; then
     echo "⚠️  Fichier .env non trouvé"
-    echo "📝 Utilisation des valeurs par défaut..."
+    if [ -f ".env.example" ]; then
+        echo "📝 Création de .env à partir de .env.example..."
+        cp .env.example .env
+        echo "✅ Fichier .env créé avec succès"
+    else
+        echo "📝 Utilisation des valeurs par défaut..."
+    fi
     echo ""
 fi
 
@@ -96,8 +114,15 @@ echo "🚀 Démarrage du backend SafeStep avec Authentication..."
 node server.js &
 SERVER_PID=$!
 
-# Attendre que le serveur démarre
-sleep 5
+# Attendre que le serveur soit prêt (poll sur le port 3001)
+echo "⏳ Attente du backend..."
+for i in $(seq 1 15); do
+    sleep 1
+    if curl -s http://localhost:3001/ > /dev/null 2>&1; then
+        echo "✅ Backend prêt après ${i}s"
+        break
+    fi
+done
 
 # Vérifier que le serveur est en cours
 if kill -0 $SERVER_PID 2>/dev/null; then
@@ -114,14 +139,35 @@ if kill -0 $SERVER_PID 2>/dev/null; then
     echo "╚═══════════════════════════════════════════════════════════╝"
     echo ""
     
-    # Vérifier que le fichier frontend existe
-    if [ -f "$FRONTEND_FILE" ]; then
-        echo "📱 Ouverture du frontend..."
-        sleep 1
-        open "$FRONTEND_FILE"
+    # Choisir le bon interpréteur Python (venv prioritaire)
+    if [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
+        PYTHON="$SCRIPT_DIR/.venv/bin/python"
     else
-        echo "⚠️  Fichier frontend non trouvé: $FRONTEND_FILE"
-        echo "📝 Ouvrez manuellement: capstone/safestepV3-connected-full.html"
+        PYTHON="python3"
+    fi
+
+    # Lancer la BLE Gateway Python si bleak est disponible
+    if $PYTHON -c "import bleak" 2>/dev/null; then
+        echo "🦷 Démarrage BLE Gateway Python ($PYTHON)..."
+        $PYTHON "$SCRIPT_DIR/ble-gateway.py" &
+        BLE_PID=$!
+        echo "   PID gateway: $BLE_PID"
+    else
+        echo "⚠️  BLE Gateway non disponible (bleak non installé)"
+        echo "   → $PYTHON -m pip install bleak requests"
+        echo "   → puis: $PYTHON ble-gateway.py"
+    fi
+    echo ""
+
+    # Ouvrir le frontend via HTTP
+    echo "📱 Ouverture du frontend sur $FRONTEND_URL ..."
+    sleep 1
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "$FRONTEND_URL"
+    elif command -v open &> /dev/null; then
+        open "$FRONTEND_URL"
+    else
+        echo "📝 Ouvrez manuellement: $FRONTEND_URL"
     fi
     
     echo ""
@@ -161,112 +207,14 @@ else
     echo "❌ Erreur lors du démarrage du serveur"
     echo ""
     echo "💡 Vérifications:"
-    echo "   1. MongoDB est-il en cours? → brew services list"
+    if [[ "$(uname)" == "Linux" ]]; then
+        echo "   1. MongoDB est-il en cours? → systemctl status mongod"
+    else
+        echo "   1. MongoDB est-il en cours? → brew services list"
+    fi
     echo "   2. Le port 3001 est-il libre? → lsof -i :3001"
     echo "   3. Les dépendances sont-elles installées? → cd backend && npm install"
     echo "   4. Le fichier server.js existe? → ls -la backend/server.js"
-    echo ""
-    exit 1
-fi
-
-# Vérifier si .env existe
-if [ ! -f ".env" ]; then
-    echo "⚠️  Fichier .env non trouvé"
-    echo "📝 Utilisation des valeurs par défaut..."
-    echo ""
-fi
-
-# Vérifier si node_modules existe
-if [ ! -d "node_modules" ]; then
-    echo "📦 Installation des dépendances npm..."
-    npm install
-    echo ""
-fi
-
-# Initialiser la base de données si nécessaire
-echo "🗄️  Vérification de la base de données..."
-if command -v mongosh &> /dev/null || command -v mongo &> /dev/null; then
-    echo "📝 Initialisation des utilisateurs par défaut..."
-    npm run init-db 2>/dev/null || echo "⚠️  Base de données déjà initialisée"
-    echo ""
-fi
-
-# Démarrer le serveur en arrière-plan
-echo "🚀 Démarrage du backend SafeStep avec Authentication..."
-node server.js &
-SERVER_PID=$!
-
-# Attendre que le serveur démarre
-sleep 5
-
-# Vérifier que le serveur est en cours
-if kill -0 $SERVER_PID 2>/dev/null; then
-    echo ""
-    echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║                                                           ║"
-    echo "║   ✅ Backend démarré avec succès!                        ║"
-    echo "║                                                           ║"
-    echo "║   🌐 API: http://localhost:3001                          ║"
-    echo "║   🔌 WebSocket: ws://localhost:3001                      ║"
-    echo "║   🔐 Authentication: JWT Enabled                         ║"
-    echo "║   �️  Database: MongoDB                                  ║"
-    echo "║                                                           ║"
-    echo "╚═══════════════════════════════════════════════════════════╝"
-    echo ""
-    echo "�📱 Ouverture du frontend..."
-    sleep 1
-    
-    # Ouvrir le frontend
-    cd ..
-    open capstone/safestepV3-connected-full.html
-    
-    echo ""
-    echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║                                                           ║"
-    echo "║   ✨ SafeStep est maintenant en cours d'exécution!       ║"
-    echo "║                                                           ║"
-    echo "║   � Credentials de connexion:                           ║"
-    echo "║      Email: marie.joubert@email.com                      ║"
-    echo "║      Password: Password123!                              ║"
-    echo "║                                                           ║"
-    echo "║   Ou utilisez:                                            ║"
-    echo "║      Email: demo@safestep.com                            ║"
-    echo "║      Password: Password123!                              ║"
-    echo "║                                                           ║"
-    echo "║   👉 Le frontend s'ouvrira avec une page de login        ║"
-    echo "║   🟢 Backend Connected = Authentification réussie        ║"
-    echo "║                                                           ║"
-    echo "║   📊 Les données se mettent à jour en temps réel         ║"
-    echo "║   🚨 La détection de chute est active                    ║"
-    echo "║   🆘 Le bouton SOS est fonctionnel                       ║"
-    echo "║   🔐 Toutes les routes sont protégées par JWT            ║"
-    echo "║                                                           ║"
-    echo "╚═══════════════════════════════════════════════════════════╝"
-    echo ""
-    echo "📝 Commandes utiles:"
-    echo "   - Arrêter le serveur: kill $SERVER_PID"
-    echo "   - Voir les logs: tail -f /tmp/safestep.log"
-    echo "   - MongoDB shell: mongosh"
-    echo ""
-    echo "📚 Documentation:"
-    echo "   - backend/AUTH_README.md - Documentation complète API"
-    echo "   - backend/INSTALLATION.md - Guide d'installation"
-    echo "   - backend/SUMMARY.md - Récapitulatif du système"
-    echo ""
-    
-    # Garder le script en cours pour voir les logs
-    wait $SERVER_PID
-else
-    echo ""
-    echo "❌ Erreur lors du démarrage du serveur"
-    echo ""
-    echo "💡 Vérifications:"
-    echo "   1. MongoDB est-il en cours? → brew services list"
-    echo "   2. Le port 3001 est-il libre? → lsof -i :3001"
-    echo "   3. Les dépendances sont-elles installées? → npm install"
-    echo "   4. Le fichier .env existe-t-il? → ls -la backend/.env"
-    echo ""
-    echo "📖 Consultez backend/INSTALLATION.md pour plus d'aide"
     echo ""
     exit 1
 fi

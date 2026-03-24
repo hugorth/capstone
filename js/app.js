@@ -11,16 +11,47 @@ const App = () => {
         checkAuthentication();
     }, []);
 
+    const setupRealtimeListeners = () => {
+        if (window.safestepSyncInterval) clearInterval(window.safestepSyncInterval);
+
+        let pendingSteps = 0;
+
+        SafeStepAPI.on('step_counted', (data) => {
+            // Si synced=true, le backend a déjà incrémenté en DB (Web BLE) → pas besoin de re-syncer
+            if (!data?.synced) {
+                pendingSteps += 1;
+            }
+            window.dispatchEvent(new CustomEvent('safestep_step_added', { detail: { steps: data?.steps } }));
+        });
+
+        window.safestepSyncInterval = setInterval(() => {
+            if (pendingSteps > 0) {
+                const stepsToSync = pendingSteps;
+                pendingSteps = 0;
+                SafeStepAPI.syncSteps(stepsToSync).catch(() => {
+                    pendingSteps += stepsToSync;
+                });
+            }
+        }, 5000);
+
+        SafeStepAPI.on('fall_detected', (data) => {
+            console.log('🚨 FALL DETECTED:', data);
+            alert(`⚠️ CHUTE DÉTECTÉE!\n\nLieu: ${data.location}\nSévérité: ${data.severity}\n\nLes contacts d'urgence ont été notifiés.`);
+        });
+    };
+
     const checkAuthentication = async () => {
         setAuthLoading(true);
-        
+
         try {
             if (AuthManager.isAuthenticated()) {
                 const result = await SafeStepAPI.verifyToken();
-                
+
                 if (result.success && result.user) {
                     setCurrentUser(result.user);
                     setIsLoggedIn(true);
+                    SafeStepAPI.connect();
+                    setupRealtimeListeners();
                     console.log('✅ User authenticated:', result.user);
                 } else {
                     AuthManager.clearAuth();
@@ -41,18 +72,14 @@ const App = () => {
     const handleLogin = (user) => {
         setCurrentUser(user);
         setIsLoggedIn(true);
-        
         SafeStepAPI.connect();
-        
-        SafeStepAPI.on('fall_detected', (data) => {
-            console.log('🚨 FALL DETECTED:', data);
-            alert(`⚠️ CHUTE DÉTECTÉE!\n\nLieu: ${data.location}\nSévérité: ${data.severity}\n\nLes contacts d'urgence ont été notifiés.`);
-        });
+        setupRealtimeListeners();
     };
 
     const handleLogout = async () => {
         try {
             await SafeStepAPI.logout();
+            if (window.safestepSyncInterval) clearInterval(window.safestepSyncInterval);
             setIsLoggedIn(false);
             setCurrentUser(null);
             setCurrentScreen('dashboard');
@@ -91,34 +118,14 @@ const App = () => {
 
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: 'home', color: '#0EA5E9' },
-        { id: 'health', label: 'Health & Vitals', icon: 'heart-pulse', color: '#EF4444' },
-        { id: 'medication', label: 'Medications', icon: 'pill', color: '#8B5CF6' },
-        { id: 'exercise', label: 'Exercises', icon: 'dumbbell', color: '#10B981' },
-        { id: 'alerts', label: 'Alerts', icon: 'bell', color: '#F59E0B' },
         { id: 'fall-history', label: 'Fall History', icon: 'alert-triangle', color: '#EF4444' },
-        { id: 'analysis', label: 'Gait Analysis', icon: 'activity', color: '#0EA5E9' },
-        { id: 'weather', label: 'Weather', icon: 'cloud-sun', color: '#3B82F6' },
-        { id: 'heatmap', label: 'Activity Map', icon: 'map', color: '#06B6D4' },
-        { id: 'social', label: 'Community', icon: 'users', color: '#A855F7' },
-        { id: 'achievements', label: 'Achievements', icon: 'trophy', color: '#F59E0B' },
-        { id: 'emergency', label: 'Emergency SOS', icon: 'siren', color: '#DC2626' },
         { id: 'settings', label: 'Settings', icon: 'settings', color: '#64748B' },
     ];
 
     const renderScreen = () => {
         switch(currentScreen) {
             case 'dashboard': return <DashboardScreen currentUser={currentUser} />;
-            case 'health': return <HealthStatsScreen />;
-            case 'medication': return <MedicationScreen />;
-            case 'exercise': return <ExerciseScreen />;
-            case 'alerts': return <AlertsScreen />;
             case 'fall-history': return <FallHistoryScreen />;
-            case 'analysis': return <AnalysisScreen />;
-            case 'weather': return <WeatherScreen />;
-            case 'heatmap': return <HeatmapScreen />;
-            case 'social': return <SocialScreen />;
-            case 'achievements': return <AchievementsScreen />;
-            case 'emergency': return <EmergencyScreen />;
             case 'settings': return <SettingsScreen currentUser={currentUser} onLogout={handleLogout} />;
             default: return <DashboardScreen currentUser={currentUser} />;
         }
@@ -245,17 +252,17 @@ const App = () => {
                         <Icon name="home" size={22} />
                         <span className="text-xs font-semibold">Home</span>
                     </div>
-                    <div onClick={() => setCurrentScreen('health')} className={currentScreen === 'health' ? 'nav-item active' : 'nav-item'}>
-                        <Icon name="heart-pulse" size={22} />
-                        <span className="text-xs font-semibold">Health</span>
+                    <div onClick={() => setCurrentScreen('fall-history')} className={currentScreen === 'fall-history' ? 'nav-item active' : 'nav-item'}>
+                        <Icon name="alert-triangle" size={22} />
+                        <span className="text-xs font-semibold">Chutes</span>
                     </div>
-                    <div onClick={() => setCurrentScreen('emergency')} className={currentScreen === 'emergency' ? 'nav-item active' : 'nav-item'}>
-                        <Icon name="siren" size={22} />
-                        <span className="text-xs font-semibold">SOS</span>
+                    <div onClick={() => setCurrentScreen('settings')} className={currentScreen === 'settings' ? 'nav-item active' : 'nav-item'}>
+                        <Icon name="settings" size={22} />
+                        <span className="text-xs font-semibold">Config</span>
                     </div>
                     <div onClick={() => setMenuOpen(true)} className="nav-item">
                         <Icon name="grid" size={22} />
-                        <span className="text-xs font-semibold">Plus</span>
+                        <span className="text-xs font-semibold">Menu</span>
                     </div>
                 </div>
             </div>

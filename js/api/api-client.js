@@ -17,6 +17,11 @@ function initWebSocket() {
 
     wsConnection.onopen = () => {
         console.log('✅ WebSocket connected');
+        // Authentifie la connexion WebSocket avec le JWT
+        const token = AuthManager.getAccessToken();
+        if (token) {
+            wsConnection.send(JSON.stringify({ type: 'auth', token }));
+        }
     };
 
     wsConnection.onmessage = (event) => {
@@ -106,14 +111,14 @@ const SafeStepAPI = {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || 'Login failed');
+            throw new Error(error.error || error.message || 'Login failed');
         }
 
         const data = await response.json();
-        
-        if (data.success && data.accessToken) {
-            AuthManager.setTokens(data.accessToken, data.refreshToken);
-            return data;
+
+        if (data.success && data.data?.accessToken) {
+            AuthManager.setTokens(data.data.accessToken, data.data.refreshToken);
+            return { success: true, user: data.data.user };
         }
 
         throw new Error('Invalid login response');
@@ -123,24 +128,24 @@ const SafeStepAPI = {
         const response = await fetch(`${API_CONFIG.BASE_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email, 
-                password, 
+            body: JSON.stringify({
+                email,
+                password,
                 name,
-                ...additionalData 
+                ...additionalData
             })
         });
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || 'Registration failed');
+            throw new Error(error.error || error.message || 'Registration failed');
         }
 
         const data = await response.json();
-        
-        if (data.success && data.accessToken) {
-            AuthManager.setTokens(data.accessToken, data.refreshToken);
-            return data;
+
+        if (data.success && data.data?.accessToken) {
+            AuthManager.setTokens(data.data.accessToken, data.data.refreshToken);
+            return { success: true, user: data.data.user };
         }
 
         throw new Error('Invalid registration response');
@@ -162,7 +167,11 @@ const SafeStepAPI = {
     async verifyToken() {
         try {
             const response = await apiRequest('/auth/verify');
-            return response;
+            // Le serveur retourne { success, data: { user } }
+            return {
+                success: response.success,
+                user: response.data?.user ?? response.user
+            };
         } catch (error) {
             console.error('Token verification failed:', error);
             return { success: false };
@@ -183,10 +192,16 @@ const SafeStepAPI = {
         body: JSON.stringify(data) 
     }),
     getDeviceStatus: () => apiRequest('/device/status'),
+    postDeviceData: (data) => apiRequest('/device/data', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
     getActivity: () => apiRequest('/activity'),
     getHealth: () => apiRequest('/health'),
     getFallRisk: () => apiRequest('/fallrisk'),
     getAlerts: () => apiRequest('/alerts'),
+    syncSteps: (steps) => apiRequest('/activity/sync-steps', { method: 'POST', body: JSON.stringify({ steps }) }),
+    recordFall: (data) => apiRequest('/falls', { method: 'POST', body: JSON.stringify(data) }),
     activateSOS: () => apiRequest('/emergency/sos', { method: 'POST' }),
 };
 

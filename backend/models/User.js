@@ -142,6 +142,24 @@ const userSchema = new mongoose.Schema({
   }],
   
   // Activity Tracking
+  dailySteps: {
+    type: Number,
+    default: 0
+  },
+  falls: [{
+    date: {
+      type: Date,
+      default: Date.now
+    },
+    location: {
+      type: String,
+      default: 'Position inconnue'
+    },
+    severity: {
+      type: String,
+      default: 'Élevée'
+    }
+  }],
   lastLogin: Date,
   lastLoginIP: String,
   loginHistory: [{
