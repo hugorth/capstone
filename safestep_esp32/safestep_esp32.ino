@@ -184,10 +184,10 @@ FallState  fallState        = NORMAL;
 uint32_t   freefallStart    = 0;
 uint32_t   impactTime       = 0;
 
-#define FREEFALL_THRESHOLD   0.5f   // g
-#define IMPACT_THRESHOLD     2.5f   // g
-#define FREEFALL_MIN_MS      100
-#define CONFIRM_WINDOW_MS    500
+#define FREEFALL_THRESHOLD   0.8f   // g (Augmenté de 0.5 à 0.8 pour être plus tolérant)
+#define IMPACT_THRESHOLD     1.8f   // g (Baissé de 2.5 à 1.8 pour détecter un impact plus léger)
+#define FREEFALL_MIN_MS      50     // ms (Baissé de 100 à 50 pour nécessiter une chute plus courte)
+#define CONFIRM_WINDOW_MS    2000   // ms (Augmenté de 500 à 2000 pour laisser le temps au capteur de vibration de s'activer)
 
 bool detectFall(const IMUData& imu, bool vibration) {
   float mag = sqrt(imu.ax * imu.ax + imu.ay * imu.ay + imu.az * imu.az);

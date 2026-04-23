@@ -207,9 +207,10 @@ const LoginScreen = ({ onLogin }) => {
                     <div className="mt-6 text-center">
                         <button
                             onClick={() => setShowHint(!showHint)}
-                            className="text-sm text-blue-500 hover:text-blue-600 font-semibold"
+                            className="text-sm text-blue-500 hover:text-blue-600 font-semibold flex items-center gap-1.5 mx-auto"
                         >
-                            {showHint ? '🔽' : '▶️'} Compte de démonstration
+                            <Icon name={showHint ? 'chevron-down' : 'chevron-right'} size={14} />
+                            Compte de démonstration
                         </button>
                         
                         {showHint && (

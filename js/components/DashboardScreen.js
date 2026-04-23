@@ -78,7 +78,7 @@ const DashboardScreen = ({ currentUser }) => {
         <div className="p-6 pb-24 animate-fade-in">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold">Bonjour, {currentUser?.name?.split(' ')[0] || 'Utilisateur'}</h1>
+                    <h1 className="text-3xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Bonjour, {currentUser?.name?.split(' ')[0] || 'Utilisateur'}</h1>
                     <p className="text-slate-500">Voici votre activité d'aujourd'hui</p>
                 </div>
                 <div className="flex items-center gap-2">

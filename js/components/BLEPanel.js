@@ -93,8 +93,8 @@ const BLEPanel = () => {
         <div className="metric-card mb-6">
             {fallAlert && (
                 <div className="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                    <span style={{ fontSize: '1.2rem' }}>🚨</span>
-                    <span className="text-red-700 font-semibold text-sm">Chute détectée !</span>
+                    <Icon name="alert-triangle" size={18} color="#EF4444" />
+                    <span className="text-red-600 font-semibold text-sm">Chute détectée !</span>
                 </div>
             )}
 
@@ -135,7 +135,12 @@ const BLEPanel = () => {
                             </div>
                         </div>
                     )}
-                    {vibration && <div className="text-orange-500 font-sans font-semibold">⚡ Vibration</div>}
+                    {vibration && (
+                        <div className="text-orange-400 font-sans font-semibold flex items-center gap-1">
+                            <Icon name="zap" size={14} color="#FB923C" />
+                            Vibration
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -156,18 +161,7 @@ const BLEPanel = () => {
                 )
             )}
 
-            <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-500">
-                <p className="font-semibold text-slate-600 mb-1">BLE Gateway Python</p>
-                {gatewayLive ? (
-                    <p className="text-green-600 font-semibold">✅ Gateway active</p>
-                ) : (
-                    <>
-                        <p className="mb-1">Dans un terminal :</p>
-                        <code className="block bg-slate-200 px-2 py-1 rounded mb-1">pip install bleak requests</code>
-                        <code className="block bg-slate-200 px-2 py-1 rounded">python3 ble-gateway.py</code>
-                    </>
-                )}
-            </div>
+
         </div>
     );
 };

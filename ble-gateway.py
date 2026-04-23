@@ -169,9 +169,12 @@ async def connect_and_run():
 
         device = None
         try:
-            device = await BleakScanner.find_device_by_name(
-                DEVICE_NAME, timeout=10.0
+            device = await asyncio.wait_for(
+                BleakScanner.find_device_by_name(DEVICE_NAME, timeout=10.0),
+                timeout=12.0
             )
+        except asyncio.TimeoutError:
+            log.warning("Le scan a expiré (timeout de sécurité).")
         except Exception as e:
             log.error(f"Erreur scan: {e}")
 
@@ -182,8 +185,11 @@ async def connect_and_run():
 
         log.info(f"✅ Trouvé: {device.name} ({device.address})")
 
+        def handle_disconnect(client):
+            log.warning("🔴 Disconnected callback called!")
+
         try:
-            async with BleakClient(device) as client:
+            async with BleakClient(device.address, disconnected_callback=handle_disconnect) as client:
                 log.info("🔗 Connecté via BLE")
 
                 await client.start_notify(CHAR_IMU_UUID,       on_imu)
