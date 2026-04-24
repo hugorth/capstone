@@ -1,0 +1,27 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Mac
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# C/C++ / Arduino
+build/
+*.bin
+*.elf
+*.hex
