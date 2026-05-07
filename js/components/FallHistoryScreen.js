@@ -13,8 +13,8 @@ const FallHistoryScreen = () => {
             .catch(() => setFalls([]));
     }, []);
 
-    const displayedFalls = showAll ? falls : falls.slice(0, 3);
-    const hasMore = falls.length > 3;
+    const displayedFalls = showAll ? falls : falls.slice(0, 4);
+    const hasMore = falls.length > 4;
 
     return (
         <div className="p-6 pb-24 animate-fade-in">
@@ -92,7 +92,7 @@ const FallHistoryScreen = () => {
                             {showAll ? (
                                 <>Réduire la liste <Icon name="chevron-up" size={16} /></>
                             ) : (
-                                <>Voir les {falls.length - 3} autres chutes <Icon name="chevron-down" size={16} /></>
+                                <>Voir les {falls.length - 4} autres chutes <Icon name="chevron-down" size={16} /></>
                             )}
                         </button>
                     )}

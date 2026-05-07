@@ -3,10 +3,8 @@ const App = () => {
     const [isLoggedIn, setIsLoggedIn] = React.useState(false);
     const [currentUser, setCurrentUser] = React.useState(null);
     const [currentScreen, setCurrentScreen] = React.useState('dashboard');
-    const [menuOpen, setMenuOpen] = React.useState(false);
     const [authLoading, setAuthLoading] = React.useState(true);
 
-    // Check authentication on mount
     React.useEffect(() => {
         checkAuthentication();
     }, []);
@@ -17,7 +15,6 @@ const App = () => {
         let pendingSteps = 0;
 
         SafeStepAPI.on('step_counted', (data) => {
-            // Si synced=true, le backend a déjà incrémenté en DB (Web BLE) → pas besoin de re-syncer
             if (!data?.synced) {
                 pendingSteps += 1;
             }
@@ -42,17 +39,14 @@ const App = () => {
 
     const checkAuthentication = async () => {
         setAuthLoading(true);
-
         try {
             if (AuthManager.isAuthenticated()) {
                 const result = await SafeStepAPI.verifyToken();
-
                 if (result.success && result.user) {
                     setCurrentUser(result.user);
                     setIsLoggedIn(true);
                     SafeStepAPI.connect();
                     setupRealtimeListeners();
-                    console.log('✅ User authenticated:', result.user);
                 } else {
                     AuthManager.clearAuth();
                     setIsLoggedIn(false);
@@ -83,13 +77,11 @@ const App = () => {
             setIsLoggedIn(false);
             setCurrentUser(null);
             setCurrentScreen('dashboard');
-            console.log('✅ User logged out');
         } catch (error) {
             console.error('Logout error:', error);
         }
     };
 
-    // Show loading screen while checking auth
     if (authLoading) {
         return (
             <div className="app-container flex items-center justify-center min-h-screen">
@@ -105,7 +97,7 @@ const App = () => {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span className="text-slate-600">Loading...</span>
+                        <span className="text-slate-600">Chargement...</span>
                     </div>
                 </div>
             </div>
@@ -117,17 +109,17 @@ const App = () => {
     }
 
     const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: 'home', color: '#0EA5E9' },
-        { id: 'fall-history', label: 'Fall History', icon: 'alert-triangle', color: '#EF4444' },
-        { id: 'settings', label: 'Settings', icon: 'settings', color: '#64748B' },
+        { id: 'dashboard',    label: 'Home',     icon: 'home',           color: '#0EA5E9' },
+        { id: 'fall-history', label: 'Chutes',   icon: 'alert-triangle', color: '#EF4444' },
+        { id: 'settings',     label: 'Réglages', icon: 'settings',       color: '#64748B' },
     ];
 
     const renderScreen = () => {
         switch(currentScreen) {
-            case 'dashboard': return <DashboardScreen currentUser={currentUser} />;
+            case 'dashboard':    return <DashboardScreen currentUser={currentUser} />;
             case 'fall-history': return <FallHistoryScreen />;
-            case 'settings': return <SettingsScreen currentUser={currentUser} onLogout={handleLogout} />;
-            default: return <DashboardScreen currentUser={currentUser} />;
+            case 'settings':     return <SettingsScreen currentUser={currentUser} onLogout={handleLogout} />;
+            default:             return <DashboardScreen currentUser={currentUser} />;
         }
     };
 
@@ -165,16 +157,12 @@ const App = () => {
                                 key={item.id}
                                 onClick={() => setCurrentScreen(item.id)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                                    currentScreen === item.id 
-                                        ? 'bg-blue-50 text-blue-600' 
+                                    currentScreen === item.id
+                                        ? 'bg-blue-50 text-blue-600'
                                         : 'hover:bg-slate-50 text-slate-700'
                                 }`}
                             >
-                                <Icon 
-                                    name={item.icon} 
-                                    size={20} 
-                                    color={currentScreen === item.id ? item.color : '#64748B'} 
-                                />
+                                <Icon name={item.icon} size={20} color={currentScreen === item.id ? item.color : '#64748B'} />
                                 <span className="font-semibold text-sm">{item.label}</span>
                             </button>
                         ))}
@@ -184,105 +172,49 @@ const App = () => {
 
             {/* Main Content */}
             <div className="desktop-main">
-                {/* Mobile Header */}
-                <div className="mobile-header fixed top-0 left-1/2 transform -translate-x-1/2 w-full max-w-[480px] bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-50">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                            <Icon name="footprints" size={20} color="white" />
-                        </div>
-                        <div>
-                            <h1 className="font-bold text-lg">SafeStep</h1>
-                            <p className="text-xs text-slate-500">
-                                {menuItems.find(item => item.id === currentScreen)?.label || 'Dashboard'}
-                            </p>
-                        </div>
+                {/* Mobile Header — logo + titre seulement */}
+                <div className="mobile-header fixed top-0 left-1/2 transform -translate-x-1/2 w-full max-w-[480px] bg-white border-b border-slate-200 px-5 py-3 flex items-center z-50">
+                    <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-3">
+                        <Icon name="footprints" size={18} color="white" />
                     </div>
-                    <button 
-                        onClick={() => setMenuOpen(!menuOpen)}
-                        className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center hover:bg-slate-200 transition-all"
-                    >
-                        <Icon name={menuOpen ? 'x' : 'menu'} size={20} color="#0F172A" />
-                    </button>
+                    <div>
+                        <h1 className="font-bold text-base leading-tight">SafeStep</h1>
+                        <p className="text-xs text-slate-500 leading-tight">
+                            {menuItems.find(item => item.id === currentScreen)?.label || 'Home'}
+                        </p>
+                    </div>
                 </div>
 
-                {/* Mobile Slide-out Menu */}
-                {menuOpen && (
-                    <div 
-                        className="fixed inset-0 bg-black bg-opacity-50 z-40 animate-fade-in"
-                        onClick={() => setMenuOpen(false)}
-                    >
-                        <div 
-                            className="fixed right-0 top-0 h-full w-80 bg-white shadow-2xl overflow-y-auto animate-slide-up"
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ maxWidth: 'calc(100vw - 2rem)' }}
-                        >
-                            <div className="p-6">
-                                <h2 className="text-xl font-bold mb-6">Menu</h2>
-                                <div className="space-y-2">
-                                    {menuItems.map((item) => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => {
-                                                setCurrentScreen(item.id);
-                                                setMenuOpen(false);
-                                            }}
-                                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                                                currentScreen === item.id 
-                                                    ? 'bg-blue-50 text-blue-600' 
-                                                    : 'hover:bg-slate-50 text-slate-700'
-                                            }`}
-                                        >
-                                            <Icon name={item.icon} size={20} color={item.color} />
-                                            <span className="font-semibold text-sm">{item.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                <div className="desktop-content pt-20 content-wrapper">
+                <div className="desktop-content pt-16 content-wrapper">
                     {renderScreen()}
                 </div>
-                
-                {/* Mobile Bottom Navigation */}
+
+                {/* Mobile Bottom Navigation — 3 items */}
                 <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-[480px] nav-bar">
-                    <div onClick={() => setCurrentScreen('dashboard')} className={currentScreen === 'dashboard' ? 'nav-item active' : 'nav-item'}>
-                        <Icon name="home" size={22} />
-                        <span className="text-xs font-semibold">Home</span>
-                    </div>
-                    <div onClick={() => setCurrentScreen('fall-history')} className={currentScreen === 'fall-history' ? 'nav-item active' : 'nav-item'}>
-                        <Icon name="alert-triangle" size={22} />
-                        <span className="text-xs font-semibold">Chutes</span>
-                    </div>
-                    <div onClick={() => setCurrentScreen('settings')} className={currentScreen === 'settings' ? 'nav-item active' : 'nav-item'}>
-                        <Icon name="settings" size={22} />
-                        <span className="text-xs font-semibold">Config</span>
-                    </div>
-                    <div onClick={() => setMenuOpen(true)} className="nav-item">
-                        <Icon name="grid" size={22} />
-                        <span className="text-xs font-semibold">Menu</span>
-                    </div>
+                    {menuItems.map((item) => (
+                        <div
+                            key={item.id}
+                            onClick={() => setCurrentScreen(item.id)}
+                            className={currentScreen === item.id ? 'nav-item active' : 'nav-item'}
+                        >
+                            <Icon name={item.icon} size={22} />
+                            <span className="text-xs font-semibold">{item.label}</span>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
     );
 };
 
-// Render with React 18 API
 console.log('🚀 Initializing React app...');
 
 try {
     const rootElement = document.getElementById('root');
-    if (!rootElement) {
-        throw new Error('Root element not found!');
-    }
-    
+    if (!rootElement) throw new Error('Root element not found!');
     rootElement.innerHTML = '';
     const root = ReactDOM.createRoot(rootElement);
     root.render(<App />);
-    
     console.log('✅ App rendered successfully');
     initLucideIcons();
 } catch (error) {

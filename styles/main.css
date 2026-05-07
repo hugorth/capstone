@@ -402,6 +402,10 @@ input:focus {
     .responsive-grid-3 { grid-template-columns: repeat(2, 1fr); }
     .responsive-grid-3 > *:last-child:nth-child(odd) { grid-column: span 2; }
     .responsive-grid-4 { grid-template-columns: repeat(2, 1fr); }
+
+    /* Nav — 3 items : espace uniforme */
+    .nav-bar { justify-content: space-evenly; }
+    .nav-item { flex: 1; min-width: 0; }
 }
 
 /* ============================================================================
