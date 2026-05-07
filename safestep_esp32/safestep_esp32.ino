@@ -126,6 +126,7 @@ class BLECallbacks : public BLEServerCallbacks {
 };
 
 void ble_init() {
+  BLEDevice::setMTU(247);  // 24-byte IMU packet dépasse le MTU par défaut (20 bytes)
   BLEDevice::init("SafeStep_Shoe");
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new BLECallbacks());
